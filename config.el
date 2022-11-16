@@ -28,8 +28,8 @@
 ;; up, `M-x eval-region' to execute elisp code, and 'M-x doom/reload-font' to
 ;; refresh your font settings. If Emacs still can't find your font, it likely
 ;; wasn't installed correctly. Font issues are rarely Doom issues!
-(setq doom-font (font-spec :family "JetBrains Mono" :size 14 :weight 'light)
-     doom-variable-pitch-font (font-spec :family "JetBrains Mono" :size 14 :weight 'light)
+(setq doom-font (font-spec :family "Fira Code Retina" :size 15)
+     doom-variable-pitch-font (font-spec :family "Fira Code Retina" :size 15)
      line-spacing 2)
 ;; There are two ways to load a theme. Both assume the theme is installed and
 ;; available. You can either set `doom-theme' or manually load a theme with the
@@ -86,14 +86,32 @@
       treemacs--width-is-locked nil
       treemacs-width-is-initially-locked nil)
 
+(customize-set-variable 'copilot-enable-predicates '(evil-insert-state-p))
+
+; complete by copilot first, then company-mode
+(defun my-tab ()
+  (interactive)
+  (or (copilot-accept-completion)
+      (company-indent-or-complete-common nil)))
+
+; modify company-mode behaviors
+(with-eval-after-load 'company
+  ; disable inline previews
+  (delq 'company-preview-if-just-one-frontend company-frontends)
+  ; enable tab completion
+  (define-key company-mode-map (kbd "<tab>") 'my-tab)
+  (define-key company-mode-map (kbd "TAB") 'my-tab)
+  (define-key company-active-map (kbd "<tab>") 'my-tab)
+  (define-key company-active-map (kbd "TAB") 'my-tab))
+
 ;; accept completion from copilot and fallback to company
 (use-package! copilot
   :hook (prog-mode . copilot-mode)
-  :bind (("C-TAB" . 'copilot-accept-completion-by-word)
-         ("C-<tab>" . 'copilot-accept-completion-by-word)
+  :bind (("C-h" . 'copilot-accept-completion-by-word)
+         ("C-h" . 'copilot-accept-completion-by-word)
          :map copilot-completion-map
-         ("<tab>" . 'copilot-accept-completion)
-         ("TAB" . 'copilot-accept-completion)))
+         ("C-j" . 'copilot-accept-completion)
+         ("C-j" . 'copilot-accept-completion)))
 
 (setq
  projectile-project-search-path '("~/SAPDevelop" "~/a"))
@@ -126,15 +144,15 @@
   (setq rustic-lsp-client nil))
 
 ;; It is 21st century, should I save file manually?
-(use-package! super-save
-  :config
-  (add-to-list 'super-save-triggers 'vertico)
-  (add-to-list 'super-save-triggers 'magit)
-  (add-to-list 'super-save-triggers 'find-file)
-  (add-to-list 'super-save-triggers 'winner-undo)
+;; (use-package! super-save
+;;   :config
+;;   (add-to-list 'super-save-triggers 'vertico)
+;;   (add-to-list 'super-save-triggers 'magit)
+;;   (add-to-list 'super-save-triggers 'find-file)
+;;   (add-to-list 'super-save-triggers 'winner-undo)
 
-  ;; Need to explicitly load the mode
-  (super-save-mode +1))
+;;   ;; Need to explicitly load the mode
+;;   (super-save-mode +1))
 
 ;; `hl-line-mode' breaks rainbow-mode when activated together
 (add-hook! 'rainbow-mode-hook
@@ -143,7 +161,7 @@
 ;;;;
 ;;; UI
 
-(setq doom-theme 'doom-dracula)
+(setq doom-theme 'doom-dark+)
 
 ;; Prevents some cases of Emacs flickering
 (add-to-list 'default-frame-alist '(inhibit-double-buffering . t))
@@ -157,8 +175,8 @@
     "Make d, c, x to not write to clipboard."
     (apply orig-fn beg end type ?_ args))
 
-(advice-add 'evil-delete :around 'meain/evil-delete-advice)
-(advice-add 'evil-change :around 'meain/evil-delete-advice)
+;; (advice-add 'evil-delete :around 'meain/evil-delete-advice)
+;; (advice-add 'evil-change :around 'meain/evil-delete-advice)
 
 ;;
 ;;; Keybindings
@@ -171,3 +189,24 @@
 ;;   (setq evil-colemak-basics-layout-mod `mod-dh)
 ;;   :config
 ;;   (global-evil-colemak-basics-mode))
+
+;; Ruby + RSpec
+(after! projectile
+  (projectile-register-project-type 'ruby-rspec '("Gemfile" "lib" "spec")
+                                    :project-file "Gemfile"
+                                    :compile "bundle exec rake"
+                                    :src-dir "lib/"
+                                    :test "bundle exec rspec"
+                                    :test-dir "spec/"
+                                    :test-suffix "_spec")
+
+  (defun projectile-test-suffix (project-type)
+    "Find default test files suffix based on PROJECT-TYPE."
+    (cond
+     ((member project-type '(emacs-cask)) "-test")
+     ((member project-type '(rails-rspec ruby-rspec)) "_spec")
+     ((member project-type '(rails-test ruby-test lein-test boot-clj go)) "_test")
+     ((member project-type '(scons)) "test")
+     ((member project-type '(npm)) ".spec")
+     ((member project-type '(maven symfony)) "Test")
+     ((member project-type '(gradle gradlew grails)) "Spec"))))
